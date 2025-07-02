@@ -1,0 +1,21 @@
+{
+  "name": "cordova-plugin-network-type-advanced",
+  "version": "1.0.0",
+  "description": "Detecta tipo de conexão de rede: 2G, 3G, 4G, 5G, WIFI",
+  "cordova": {
+    "id": "cordova-plugin-network-type-advanced",
+    "platforms": ["android"]
+  },
+  "keywords": [
+    "cordova",
+    "network",
+    "type",
+    "2g",
+    "3g",
+    "4g",
+    "5g",
+    "wifi"
+  ],
+  "author": "ChatGPT + Herbert",
+  "license": "MIT"
+}

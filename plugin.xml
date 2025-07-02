@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="cordova-plugin-network-type-advanced" version="1.0.0"
+        xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>NetworkTypeAdvanced</name>
+
+    <js-module src="www/NetworkType.js" name="NetworkTypeAdvanced">
+        <clobbers target="window.NetworkTypeAdvanced" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+        </config-file>
+        <source-file src="src/android/NetworkTypePlugin.java" target-dir="src/com/moblink/networktype" />
+    </platform>
+</plugin>
