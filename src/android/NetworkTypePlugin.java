@@ -44,7 +44,7 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
                 if (ActivityCompat.checkSelfPermission(context, Manifest.permission.PERMISSION_GRANTED)
                         != PackageManager.PERMISSION_GRANTED) {
                     callbackContext.error("Permissão PERMISSION_GRANTED não concedida");
-                    return;
+                    return "NONE";
                 }
                 int networkType = tm.getDataNetworkType();
 
