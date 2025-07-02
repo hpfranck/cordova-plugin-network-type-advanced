@@ -37,8 +37,7 @@ public class NetworkTypePlugin extends CordovaPlugin {
                 }
                 
                 Context context = this.cordova.getActivity().getApplicationContext();
-                String tipo = getConnectionType(context);
-                callbackContext.success(tipo);
+                getConnectionType(context, callbackContext);
                 return true;
             } else {
                 callbackContext.error("Ação desconhecida: " + action);
@@ -55,15 +54,14 @@ public class NetworkTypePlugin extends CordovaPlugin {
         if (requestCode == REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Context context = this.cordova.getActivity().getApplicationContext();
-                String tipo = getConnectionType(context);
-                callbackContext.success(tipo);
+                getConnectionType(context, callbackContext);
             } else {
                 callbackContext.error("Permissão READ_PHONE_STATE negada");
             }
         }
     }
 
-    private String getConnectionType(Context context) {
+    private void getConnectionType(Context context, CallbackContext callback) {
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -72,84 +70,124 @@ public class NetworkTypePlugin extends CordovaPlugin {
                 NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
                 if (capabilities != null) {
                     if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        return "WIFI";
+                        callback.success("WIFI");
+                        return;
                     } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                        return getMobileNetworkType(context);
+                        getMobileNetworkType(context, callback);
+                        return;
                     }
                 }
             }
-            return "NONE";
+            callback.success("NONE");
         } else {
             NetworkInfo netInfo = cm.getActiveNetworkInfo();
             if (netInfo != null && netInfo.isConnected()) {
                 int type = netInfo.getType();
                 if (type == ConnectivityManager.TYPE_WIFI) {
-                    return "WIFI";
+                    callback.success("WIFI");
                 } else if (type == ConnectivityManager.TYPE_MOBILE) {
-                    return getMobileNetworkType(context);
+                    getMobileNetworkType(context, callback);
                 }
+            } else {
+                callback.success("NONE");
             }
-            return "NONE";
         }
     }
     
-    private String getMobileNetworkType(Context context) {
+    private void getMobileNetworkType(Context context, CallbackContext callback) {
         try {
             TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-            
-            // Verifica permissão antes de acessar
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (context.checkSelfPermission(READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                    return "CELL";
-                }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                context.checkSelfPermission(READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                callback.success("CELL");
+                return;
             }
-            
-            // Para Android 12+ usa TelephonyDisplayInfo para detectar 5G
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                final String[] networkType = {"CELL"};
-                
-                tm.listen(new PhoneStateListener() {
+                PhoneStateListener listener = new PhoneStateListener() {
                     @Override
                     public void onDisplayInfoChanged(TelephonyDisplayInfo displayInfo) {
-                        if (displayInfo.getNetworkType() == TelephonyManager.NETWORK_TYPE_NR ||
-                            displayInfo.getOverrideNetworkType() == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA ||
-                            displayInfo.getOverrideNetworkType() == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA_MMWAVE) {
-                            networkType[0] = "5G";
+                        try {
+                            int override = displayInfo.getOverrideNetworkType();
+                            int actual = displayInfo.getNetworkType();
+
+                            String result = determineNetworkType(actual, override);
+                            
+                            callback.success(result);
+                            tm.listen(this, PhoneStateListener.LISTEN_NONE); // Remove listener
+                        } catch (Exception e) {
+                            callback.success("CELL");
                         }
                     }
-                }, PhoneStateListener.LISTEN_DISPLAY_INFO_CHANGED);
+                };
+                
+                tm.listen(listener, PhoneStateListener.LISTEN_DISPLAY_INFO_CHANGED);
+                
+                // Timeout para evitar callback infinito
+                cordova.getThreadPool().execute(() -> {
+                    try {
+                        Thread.sleep(2000);
+                        tm.listen(listener, PhoneStateListener.LISTEN_NONE);
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
+                });
+                
+            } else {
+                // Para versões anteriores ao Android 11
+                int type = tm.getDataNetworkType();
+                String result = getNetworkTypeFromInt(type);
+                callback.success(result);
+            }
+        } catch (Exception e) {
+            callback.success("CELL");
+        }
+    }
+    
+    private String determineNetworkType(int actual, int override) {
+        // Verificar 5G primeiro
+        if (actual == TelephonyManager.NETWORK_TYPE_NR) {
+            return "5G";
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (override == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA) {
+                return "5G";
             }
             
-            int networkType = tm.getDataNetworkType();
-            
-            switch (networkType) {
-                case TelephonyManager.NETWORK_TYPE_NR:
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (override == 5) { 
                     return "5G";
-                case TelephonyManager.NETWORK_TYPE_LTE:
-                    return "4G";
-                case TelephonyManager.NETWORK_TYPE_UMTS:
-                case TelephonyManager.NETWORK_TYPE_HSPA:
-                case TelephonyManager.NETWORK_TYPE_HSPAP:
-                case TelephonyManager.NETWORK_TYPE_EVDO_0:
-                case TelephonyManager.NETWORK_TYPE_EVDO_A:
-                case TelephonyManager.NETWORK_TYPE_EVDO_B:
-                case TelephonyManager.NETWORK_TYPE_EHRPD:
-                case TelephonyManager.NETWORK_TYPE_HSDPA:
-                case TelephonyManager.NETWORK_TYPE_HSUPA:
-                    return "3G";
-                case TelephonyManager.NETWORK_TYPE_EDGE:
-                case TelephonyManager.NETWORK_TYPE_GPRS:
-                case TelephonyManager.NETWORK_TYPE_CDMA:
-                case TelephonyManager.NETWORK_TYPE_1xRTT:
-                case TelephonyManager.NETWORK_TYPE_IDEN:
-                case TelephonyManager.NETWORK_TYPE_GSM:
-                    return "2G";
-                default:
-                    return "CELL";
+                }
             }
-        } catch (SecurityException e) {
-            // Se ainda houver problema de segurança, retorna tipo genérico
-            return "CELL";
+            if (override == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED) {
+                return "5G";
+            }
+        }
+        
+        return getNetworkTypeFromInt(actual);
+    }
+    
+    private String getNetworkTypeFromInt(int type) {
+        switch (type) {
+            case TelephonyManager.NETWORK_TYPE_NR:
+                return "5G";
+            case TelephonyManager.NETWORK_TYPE_LTE:
+                return "4G";
+            case TelephonyManager.NETWORK_TYPE_UMTS:
+            case TelephonyManager.NETWORK_TYPE_HSPA:
+            case TelephonyManager.NETWORK_TYPE_HSPAP:
+            case TelephonyManager.NETWORK_TYPE_HSDPA:
+            case TelephonyManager.NETWORK_TYPE_HSUPA:
+                return "3G";
+            case TelephonyManager.NETWORK_TYPE_EDGE:
+            case TelephonyManager.NETWORK_TYPE_GPRS:
+            case TelephonyManager.NETWORK_TYPE_CDMA:
+            case TelephonyManager.NETWORK_TYPE_1xRTT:
+                return "2G";
+            default:
+                return "CELL";
         }
     }
 }
