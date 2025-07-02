@@ -40,6 +40,12 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
                 return "WIFI";
             } else if (type == ConnectivityManager.TYPE_MOBILE) {
                 TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+                
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.PERMISSION_GRANTED)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    callbackContext.error("Permissão PERMISSION_GRANTED não concedida");
+                    return;
+                }
                 int networkType = tm.getDataNetworkType();
 
                 switch (networkType) {
