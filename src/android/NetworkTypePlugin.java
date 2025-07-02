@@ -2,69 +2,70 @@ package com.moblink.networktype;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
-import android.telephony.TelephonyManager;
 import android.os.Build;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 
 public class NetworkTypePlugin extends CordovaPlugin {
+    
     @Override
-public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
-    try {
-        if (action.equals("getType")) {
-            Context context = this.cordova.getActivity().getApplicationContext();
-            String tipo = getConnectionType(context);
-            callbackContext.success(tipo);
-            return true;
-        } else {
-            callbackContext.error("Ação desconhecida: " + action);
+    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
+        try {
+            if (action.equals("getType")) {
+                Context context = this.cordova.getActivity().getApplicationContext();
+                String tipo = getConnectionType(context);
+                callbackContext.success(tipo);
+                return true;
+            } else {
+                callbackContext.error("Ação desconhecida: " + action);
+                return false;
+            }
+        } catch (Exception e) {
+            callbackContext.error("Erro: " + e.getMessage());
             return false;
         }
-    } catch (Exception e) {
-        callbackContext.error("Erro Java: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-        return false;
     }
-}
 
     private String getConnectionType(Context context) {
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo netInfo = cm.getActiveNetworkInfo();
-        if (netInfo != null && netInfo.isConnected()) {
-            int type = netInfo.getType();
-            if (type == ConnectivityManager.TYPE_WIFI) {
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Network network = cm.getActiveNetwork();
+            if (network == null) return "NONE";
+            
+            NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+            if (capabilities == null) return "NONE";
+            
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
                 return "WIFI";
-            } else if (type == ConnectivityManager.TYPE_MOBILE) {
-                TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-                int networkType = tm.getDataNetworkType();
-
-                switch (networkType) {
-                    case TelephonyManager.NETWORK_TYPE_NR:
-                        return "5G";
-                    case TelephonyManager.NETWORK_TYPE_LTE:
-                        return "4G";
-                    case TelephonyManager.NETWORK_TYPE_UMTS:
-                    case TelephonyManager.NETWORK_TYPE_HSPA:
-                    case TelephonyManager.NETWORK_TYPE_HSPAP:
-                    case TelephonyManager.NETWORK_TYPE_EVDO_0:
-                    case TelephonyManager.NETWORK_TYPE_EVDO_A:
-                        return "3G";
-                    case TelephonyManager.NETWORK_TYPE_EDGE:
-                    case TelephonyManager.NETWORK_TYPE_GPRS:
-                    case TelephonyManager.NETWORK_TYPE_CDMA:
-                        return "2G";
-                    default:
-                        return "CELL";
-                }
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                return "CELL";
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                return "ETHERNET";
             } else {
                 return "UNKNOWN";
             }
         } else {
-            return "NONE";
+            // Para Android < 6.0
+            NetworkInfo netInfo = cm.getActiveNetworkInfo();
+            if (netInfo != null && netInfo.isConnected()) {
+                int type = netInfo.getType();
+                if (type == ConnectivityManager.TYPE_WIFI) {
+                    return "WIFI";
+                } else if (type == ConnectivityManager.TYPE_MOBILE) {
+                    return "CELL";
+                } else {
+                    return "UNKNOWN";
+                }
+            } else {
+                return "NONE";
+            }
         }
     }
 }

@@ -1,30 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin id="cordova-plugin-network-type-advanced" 
-        version="1.0.0"
+<plugin id="cordova-plugin-network-type-advanced" version="1.0.0"
         xmlns="http://apache.org/cordova/ns/plugins/1.0"
         xmlns:android="http://schemas.android.com/apk/res/android">
-
     <name>NetworkTypeAdvanced</name>
-    <description>Expose cellular signal strength (dBm) to JS</description>
-    <license>MIT</license>
 
-    <js-module name="NetworkTypeAdvanced" src="www/NetworkType.js">
-        <clobbers target="window.NetworkTypeAdvanced" />
+    <js-module src="www/NetworkTypeAdvanced.js" name="NetworkTypeAdvanced">
+        <clobbers target="NetworkTypeAdvanced" />
     </js-module>
 
-<platform name="android">
-    <config-file target="AndroidManifest.xml" parent="/*">
-        <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-        <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    </config-file>
+    <platform name="android">
 
-    <!-- ⬇️ IMPORTANTE: vínculo entre JS e Java -->
-    <feature name="NetworkTypeAdvanced">
-        <param name="android-package" value="com.moblink.networktype.NetworkTypePlugin" />
-    </feature>
+        <config-file target="config.xml" parent="/*">
+            <feature name="NetworkTypeAdvanced">
+                <param name="android-package"
+                       value="com.moblink.networktype.NetworkTypePlugin"/>
+            </feature>
+        </config-file>
 
-        <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+              <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
-    <source-file src="src/android/NetworkTypePlugin.java" target-dir="src/com/moblink/networktype" />
-</platform>
+        </config-file>
+
+
+        <source-file src="src/android/NetworkTypePlugin.java" target-dir="src/com/moblink/networktype" />
+    </platform>
 </plugin>
