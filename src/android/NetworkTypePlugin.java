@@ -14,15 +14,22 @@ import org.json.JSONException;
 
 public class NetworkTypePlugin extends CordovaPlugin {
     @Override
-    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
+    try {
         if (action.equals("getType")) {
             Context context = this.cordova.getActivity().getApplicationContext();
             String tipo = getConnectionType(context);
             callbackContext.success(tipo);
             return true;
+        } else {
+            callbackContext.error("Ação desconhecida: " + action);
+            return false;
         }
+    } catch (Exception e) {
+        callbackContext.error("Erro Java: " + e.getClass().getSimpleName() + ": " + e.getMessage());
         return false;
     }
+}
 
     private String getConnectionType(Context context) {
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
