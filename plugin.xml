@@ -15,12 +15,15 @@
 <platform name="android">
     <config-file target="AndroidManifest.xml" parent="/*">
         <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+        <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     </config-file>
 
     <!-- ⬇️ IMPORTANTE: vínculo entre JS e Java -->
     <feature name="NetworkTypeAdvanced">
         <param name="android-package" value="com.moblink.networktype.NetworkTypePlugin" />
     </feature>
+
+        <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <source-file src="src/android/NetworkTypePlugin.java" target-dir="src/com/moblink/networktype" />
 </platform>
